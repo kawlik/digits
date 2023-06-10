@@ -18,8 +18,8 @@ export async function loadMNIST(ratio = 0.8) {
 	const [inputs, labels] = await Promise.all([loadInputs(), loadLabels()]);
 
 	// clamp ratio
-	if (ratio < 0.1) ratio = 0.1;
-	if (ratio > 0.9) ratio = 0.9;
+	if (ratio < 0) ratio = 0;
+	if (ratio > 1) ratio = 1;
 
 	// calc dataset sizes
 	const numTrainElements = Math.floor(NUM_ELEMENTS * ratio);
@@ -30,17 +30,19 @@ export async function loadMNIST(ratio = 0.8) {
 	const shuffledTestIndices = tf.util.createShuffledIndices(numTestElements);
 
 	// split datasets
-	const trainInputs = shuffledTrainIndices.slice(0, numTrainElements * IMAGE_SIZE);
-	const trainLabels = shuffledTestIndices.slice(0, numTrainElements * NUM_CLASSESS);
-	const testInputs = shuffledTrainIndices.slice(numTrainElements * IMAGE_SIZE);
-	const testLabels = shuffledTestIndices.slice(numTrainElements * NUM_CLASSESS);
+	const trainInputs = inputs.slice(0, numTrainElements * IMAGE_SIZE);
+	const trainLabels = labels.slice(0, numTrainElements * NUM_CLASSESS);
+	const testInputs = inputs.slice(numTrainElements * IMAGE_SIZE);
+	const testLabels = labels.slice(numTrainElements * NUM_CLASSESS);
 
 	// controlers
 	let shuffledTrainIndex = 0;
 	let shuffledTestIndex = 0;
 
 	return {
-		nextTrainBatch(batchSize: number) {
+		nextTrainBatch(batchSize: number = 1) {
+			if (batchSize < 1) batchSize = 1;
+
 			return loadBatch(batchSize, [trainInputs, trainLabels], () => {
 				shuffledTrainIndex += 1;
 				shuffledTrainIndex %= shuffledTrainIndices.length;
@@ -48,7 +50,9 @@ export async function loadMNIST(ratio = 0.8) {
 				return shuffledTrainIndices[shuffledTrainIndex];
 			});
 		},
-		nextTestBatch(batchSize: number) {
+		nextTestBatch(batchSize: number = 1) {
+			if (batchSize < 1) batchSize = 1;
+
 			return loadBatch(batchSize, [testInputs, testLabels], () => {
 				shuffledTestIndex += 1;
 				shuffledTestIndex %= shuffledTestIndices.length;
@@ -119,7 +123,7 @@ async function loadLabels(): Promise<Uint8Array> {
 // dataset loaser
 function loadBatch(
 	batchSize: number,
-	datasets: [Uint32Array, Uint32Array],
+	datasets: [Float32Array, Uint8Array],
 	getIndex: () => number
 ) {
 	const inputs = new Float32Array(batchSize * IMAGE_SIZE);
@@ -130,7 +134,7 @@ function loadBatch(
 
 		// slice data item
 		const image = datasets[0].slice(index * IMAGE_SIZE, index * IMAGE_SIZE + IMAGE_SIZE);
-		const label = datasets[0].slice(
+		const label = datasets[1].slice(
 			index * NUM_CLASSESS,
 			index * NUM_CLASSESS + NUM_CLASSESS
 		);
